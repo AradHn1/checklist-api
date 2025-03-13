@@ -10,6 +10,14 @@ API_URL = "https://api.deepseek.com/v1/chat/completions"
 
 app = Flask(__name__)
 
+@app.route('/')
+def home():
+    return jsonify({"message": "Server is running!"})
+
+@app.route('/test', methods=['GET'])
+def test():
+    return jsonify({"message": "Test endpoint is working!"})
+
 def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_tasks=None):
     headers = {"Authorization": f"Bearer {API_TOKEN}", "Content-Type": "application/json"}
     previous = "\nقبلاً این وظایف تولید شده‌اند، از تکرارشون خودداری کن:\n" + "\n".join(previous_tasks) if previous_tasks else ""
