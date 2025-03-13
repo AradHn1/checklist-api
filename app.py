@@ -142,4 +142,3 @@ def download_file(filename):
         return send_file(filepath, as_attachment=True)
     return jsonify({"error": "فایل پیدا نشد"}), 404
 
-if __name__ == "__main__":
