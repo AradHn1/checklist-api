@@ -105,39 +105,42 @@ def save_to_excel(item_name, checklist):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"Checklist_{item_name}_{timestamp}.xlsx"
     # تغییر مسیر به دسکتاپ ویندوز
-    filepath = os.path.join(os.path.expanduser("~"), "Desktop", filename)
+    filepath = os.path.join(os.getcwd(), filename)  # ذخیره توی پوشه فعلی پروژه
     df.to_excel(filepath, index=False, engine='openpyxl')
     return filepath
 
 @app.route('/generate-checklist', methods=['POST'])
 def generate_checklist():
-    data = request.json
-    item_name = data.get('item_name')
-    if not item_name:
-        return jsonify({"error": "اسم شیء وارد نشده"}), 400
-    
-    checklist = generate_full_checklist(item_name, min_tasks=30)
-    if not checklist or len(checklist) < 30:
-        return jsonify({"error": "خطا در تولید چک‌لیست"}), 500
-    
-    excel_file = save_to_excel(item_name, checklist)
-    weekly = checklist[:10]
-    monthly = checklist[10:20]
-    yearly = checklist[20:]
-    response = {
-        "item_name": item_name,
-        "checklist": {
-            "weekly": [task.split(" - ")[1] if " - " in task else task for task in weekly],
-            "monthly": [task.split(" - ")[1] if " - " in task else task for task in monthly],
-            "yearly": [task.split(" - ")[1] if " - " in task else task for task in yearly]
-        },
-        "excel_file": os.path.basename(excel_file)  # فقط اسم فایل رو برگردون
-    }
-    return jsonify(response)
+    try:
+        data = request.json
+        item_name = data.get('item_name')
+        if not item_name:
+            return jsonify({"error": "اسم شیء وارد نشده"}), 400
+        
+        checklist = generate_full_checklist(item_name, min_tasks=30)
+        if not checklist or len(checklist) < 30:
+            return jsonify({"error": "خطا در تولید چک‌لیست"}), 500
+        
+        excel_file = save_to_excel(item_name, checklist)
+        weekly = checklist[:10]
+        monthly = checklist[10:20]
+        yearly = checklist[20:]
+        response = {
+            "item_name": item_name,
+            "checklist": {
+                "weekly": [task.split(" - ")[1] if " - " in task else task for task in weekly],
+                "monthly": [task.split(" - ")[1] if " - " in task else task for task in monthly],
+                "yearly": [task.split(" - ")[1] if " - " in task else task for task in yearly]
+            },
+            "excel_file": os.path.basename(excel_file)
+        }
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": f"خطای سرور: {str(e)}"}), 500
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
-    filepath = os.path.join(os.path.expanduser("~"), "Desktop", filename)
+    filepath = os.path.join(os.getcwd(), filename)  # استفاده از مسیر فعلی
     if os.path.exists(filepath):
         return send_file(filepath, as_attachment=True)
     return jsonify({"error": "فایل پیدا نشد"}), 404
