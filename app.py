@@ -143,4 +143,6 @@ def download_file(filename):
     return jsonify({"error": "فایل پیدا نشد"}), 404
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    import os
+    port = int(os.getenv("PORT", 5000))  # اگه PORT تنظیم نشده باشه، از 5000 استفاده می‌کنه
+    app.run(host="0.0.0.0", port=port)
