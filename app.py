@@ -62,6 +62,7 @@ def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_task
                     unique_lines = list(dict.fromkeys(lines))
                     print(f"تعداد وظایف تولیدشده در بخش {part_number}: {len(unique_lines)}")
                     return unique_lines
+                print("پاسخ API خالی یا ناقصه")
                 return "پاسخ API خالی یا ناقصه"
             else:
                 print(f"تلاش {attempt + 1} ناموفق: خطا {response.status_code}, متن: {response.text}")
@@ -71,22 +72,34 @@ def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_task
                 time.sleep(5)
                 continue
             return None
+    return None
 
 def generate_full_checklist(item_name, min_tasks=30):
     all_tasks = set()
     part_number = 1
     max_parts = 7
     while len(all_tasks) < min_tasks and part_number <= max_parts:
-        tasks = generate_checklist_part(item_name, num_tasks=7, part_number=part_number, previous_tasks=list(all_tasks))
-        if isinstance(tasks, list) and tasks:
-            new_tasks = [task for task in tasks if task not in all_tasks]
-            all_tasks.update(new_tasks)
+        try:
+            print(f"Starting part {part_number} for {item_name}")
+            tasks = generate_checklist_part(item_name, num_tasks=7, part_number=part_number, previous_tasks=list(all_tasks))
+            if isinstance(tasks, list) and tasks:
+                new_tasks = [task for task in tasks if task not in all_tasks]
+                all_tasks.update(new_tasks)
+                print(f"Added {len(new_tasks)} new tasks in part {part_number}. Total tasks: {len(all_tasks)}")
+                part_number += 1
+                time.sleep(10)
+            else:
+                print(f"بخش {part_number} ناموفق بود، ادامه می‌دهیم... (وظایف دریافت‌شده: {tasks})")
+                part_number += 1
+                time.sleep(10)
+        except Exception as e:
+            print(f"خطا در تولید بخش {part_number}: {str(e)}")
             part_number += 1
             time.sleep(10)
-        else:
-            print(f"بخش {part_number} ناموفق بود، ادامه می‌دهیم...")
-            part_number += 1
-            time.sleep(10)
+    if len(all_tasks) < min_tasks:
+        print(f"فقط {len(all_tasks)} وظیفه تولید شد، کمتر از حداقل {min_tasks} وظیفه")
+    else:
+        print(f"Successfully generated {len(all_tasks)} tasks for {item_name}")
     return list(all_tasks)[:max(min_tasks, len(all_tasks))]
 
 def save_to_excel(item_name, checklist):
@@ -112,23 +125,29 @@ def save_to_excel(item_name, checklist):
     df = pd.DataFrame({"وظیفه": tasks, "توضیحات": descriptions, "دوره": periods})
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"Checklist_{item_name}_{timestamp}.xlsx"
-    # تغییر مسیر به دسکتاپ ویندوز
     filepath = os.path.join(os.getcwd(), filename)  # ذخیره توی پوشه فعلی پروژه
     df.to_excel(filepath, index=False, engine='openpyxl')
+    print(f"Excel file saved at: {filepath}")
     return filepath
 
 @app.route('/generate-checklist', methods=['POST'])
 def generate_checklist():
+    print("Received request for /generate-checklist")
     try:
         data = request.json
+        print(f"Received data: {data}")
         item_name = data.get('item_name')
         if not item_name:
+            print("Item name not provided")
             return jsonify({"error": "اسم شیء وارد نشده"}), 400
         
+        print(f"Generating checklist for: {item_name}")
         checklist = generate_full_checklist(item_name, min_tasks=30)
         if not checklist or len(checklist) < 30:
+            print(f"Failed to generate checklist. Generated tasks: {len(checklist) if checklist else 0}")
             return jsonify({"error": "خطا در تولید چک‌لیست"}), 500
         
+        print("Saving checklist to Excel")
         excel_file = save_to_excel(item_name, checklist)
         weekly = checklist[:10]
         monthly = checklist[10:20]
@@ -142,14 +161,17 @@ def generate_checklist():
             },
             "excel_file": os.path.basename(excel_file)
         }
+        print("Returning response")
         return jsonify(response)
     except Exception as e:
+        print(f"Error in /generate-checklist: {str(e)}")
         return jsonify({"error": f"خطای سرور: {str(e)}"}), 500
 
 @app.route('/download/<filename>', methods=['GET'])
 def download_file(filename):
     filepath = os.path.join(os.getcwd(), filename)  # استفاده از مسیر فعلی
     if os.path.exists(filepath):
+        print(f"Downloading file: {filepath}")
         return send_file(filepath, as_attachment=True)
+    print(f"File not found: {filepath}")
     return jsonify({"error": "فایل پیدا نشد"}), 404
-
