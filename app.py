@@ -51,11 +51,12 @@ def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_task
     max_tries = 3
     for attempt in range(max_tries):
         try:
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=150)
+            print(f"تلاش {attempt + 1} برای ارسال درخواست به DeepSeek...")
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=300)  # افزایش timeout به 300 ثانیه
             elapsed_time = time.time() - start_time
             if response.status_code == 200:
-                result = response.json()
                 print(f"کد وضعیت: {response.status_code} (زمان: {elapsed_time:.2f} ثانیه)")
+                result = response.json()
                 if result and "choices" in result and len(result["choices"]) > 0:
                     text = result["choices"][0]["message"]["content"]
                     lines = [line.strip() for line in text.split('\n') if line.strip() and line.strip()[0].isdigit() and len(line.split('-')) > 1]
@@ -66,12 +67,17 @@ def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_task
                 return "پاسخ API خالی یا ناقصه"
             else:
                 print(f"تلاش {attempt + 1} ناموفق: خطا {response.status_code}, متن: {response.text}")
-        except Exception as e:
-            print(f"تلاش {attempt + 1} ناموفق: {e}")
+        except requests.exceptions.RequestException as e:
+            print(f"خطای شبکه یا درخواست در تلاش {attempt + 1}: {str(e)}")
             if attempt < max_tries - 1:
                 time.sleep(5)
                 continue
-            return None
+        except Exception as e:
+            print(f"خطای غیرمنتظره در تلاش {attempt + 1}: {str(e)}")
+            if attempt < max_tries - 1:
+                time.sleep(5)
+                continue
+    print("تمامی تلاش‌ها برای تماس با DeepSeek ناموفق بود")
     return None
 
 def generate_full_checklist(item_name, min_tasks=30):
