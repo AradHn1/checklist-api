@@ -4,6 +4,7 @@ import pandas as pd
 import os
 from datetime import datetime
 from flask import Flask, request, jsonify, send_file
+import os
 
 API_TOKEN = "sk-a5486b46cd3645f99a9650934bc9e156"
 API_URL = "https://api.deepseek.com/v1/chat/completions"
@@ -48,11 +49,11 @@ def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_task
 
     print(f"در حال ارسال درخواست برای '{item_name}' (بخش {part_number} - حداقل {num_tasks} وظیفه)...")
     start_time = time.time()
-    max_tries = 3
+    max_tries = 5
     for attempt in range(max_tries):
         try:
             print(f"تلاش {attempt + 1} برای ارسال درخواست به DeepSeek...")
-            response = requests.post(API_URL, headers=headers, json=payload, timeout=300)  # افزایش timeout به 300 ثانیه
+            response = requests.post(API_URL, headers=headers, json=payload, timeout=600)
             elapsed_time = time.time() - start_time
             if response.status_code == 200:
                 print(f"کد وضعیت: {response.status_code} (زمان: {elapsed_time:.2f} ثانیه)")
@@ -70,12 +71,16 @@ def generate_checklist_part(item_name, num_tasks=7, part_number=1, previous_task
         except requests.exceptions.RequestException as e:
             print(f"خطای شبکه یا درخواست در تلاش {attempt + 1}: {str(e)}")
             if attempt < max_tries - 1:
-                time.sleep(5)
+                wait_time = 10 * (attempt + 1)
+                print(f"منتظر {wait_time} ثانیه قبل از تلاش بعدی...")
+                time.sleep(wait_time)
                 continue
         except Exception as e:
             print(f"خطای غیرمنتظره در تلاش {attempt + 1}: {str(e)}")
             if attempt < max_tries - 1:
-                time.sleep(5)
+                wait_time = 10 * (attempt + 1)
+                print(f"منتظر {wait_time} ثانیه قبل از تلاش بعدی...")
+                time.sleep(wait_time)
                 continue
     print("تمامی تلاش‌ها برای تماس با DeepSeek ناموفق بود")
     return None
@@ -181,3 +186,7 @@ def download_file(filename):
         return send_file(filepath, as_attachment=True)
     print(f"File not found: {filepath}")
     return jsonify({"error": "فایل پیدا نشد"}), 404
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8080))  # استفاده از متغیر محیطی PORT یا پیش‌فرض 8080
+    app.run(host="0.0.0.0", port=port)
